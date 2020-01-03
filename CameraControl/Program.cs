@@ -80,22 +80,22 @@ namespace CameraControl
 
             //Create Camera model
             CameraModel model = null;
-            if (err == EDSDKLib.EDSDK.EDS_ERR_OK)
+            if (err == EDSDKLib.EDSDK.EDS_ERR_OK || err == EDSDKLib.EDSDK.EDS_ERR_DEVICE_NOT_FOUND)
             {
                 model = new CameraModel(camera);
             }
 
-            if (err != EDSDKLib.EDSDK.EDS_ERR_OK)
+            if (err != EDSDKLib.EDSDK.EDS_ERR_OK && err != EDSDKLib.EDSDK.EDS_ERR_DEVICE_NOT_FOUND)
             {
-                MessageBox.Show("Cannot detect camera");
+                MessageBox.Show($"Cannot detect camera: 0x{err:x}");
             }
-            
+
             EDSDKLib.EDSDK.EdsPropertyEventHandler handlePropertyEvent = new EDSDKLib.EDSDK.EdsPropertyEventHandler(CameraEventListener.HandlePropertyEvent);
             EDSDKLib.EDSDK.EdsObjectEventHandler handleObjectEvent = new EDSDKLib.EDSDK.EdsObjectEventHandler(CameraEventListener.HandleObjectEvent);
             EDSDKLib.EDSDK.EdsStateEventHandler handleStateEvent = new EDSDKLib.EDSDK.EdsStateEventHandler(CameraEventListener.HandleStateEvent);
            
             CameraController controller;
-            if (err == EDSDKLib.EDSDK.EDS_ERR_OK)
+            if (err == EDSDKLib.EDSDK.EDS_ERR_OK || err == EDSDKLib.EDSDK.EDS_ERR_DEVICE_NOT_FOUND)
             {
                 //Create CameraController
                 controller = new CameraController(ref model);

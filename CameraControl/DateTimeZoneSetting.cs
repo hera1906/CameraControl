@@ -86,59 +86,65 @@ namespace CameraControl
             InitializeComponent();
 
             // Date / Time
-            EDSDKLib.EDSDK.EdsTime utcTime;
-            uint err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_UTCTime, 0, out utcTime);
-
-            // Zone Setting
-            err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_TimeZone, 0, out _timeZone);
-
-            _desc = new EDSDKLib.EDSDK.EdsPropertyDesc();
-            err = EDSDKLib.EDSDK.EdsGetPropertyDesc(_camera, EDSDKLib.EDSDK.PropID_TimeZone, out _desc);
-
-            this.comboBox1.Items.Clear();
-
-            for (int i = 0; i < _desc.NumElements; i++)
+            EDSDKLib.EDSDK.EdsTime utcTime = default(EDSDKLib.EDSDK.EdsTime);
+            if (_camera != IntPtr.Zero)
             {
-                string outString;
-                bool isGet = map.TryGetValue((uint)_desc.PropDesc[i] >> 16, out outString);
-                if (isGet && !outString.Equals("unknown"))
+                uint err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_UTCTime, 0, out utcTime);
+
+                // Zone Setting
+                err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_TimeZone, 0, out _timeZone);
+
+                _desc = new EDSDKLib.EDSDK.EdsPropertyDesc();
+                err = EDSDKLib.EDSDK.EdsGetPropertyDesc(_camera, EDSDKLib.EDSDK.PropID_TimeZone, out _desc);
+
+                this.comboBox1.Items.Clear();
+
+                for (int i = 0; i < _desc.NumElements; i++)
                 {
-                    // Create list of combo box
-                    comboBox1.Items.Add(outString);
-                    if (_timeZone == _desc.PropDesc[i])
+                    string outString;
+                    bool isGet = map.TryGetValue((uint)_desc.PropDesc[i] >> 16, out outString);
+                    if (isGet && !outString.Equals("unknown"))
                     {
-                        // Select item of combo box
-                        comboBox1.SelectedIndex = i;
-                        _timeZone = (uint)_desc.PropDesc[i];
-                        _timeZonePrev = _timeZone;
+                        // Create list of combo box
+                        comboBox1.Items.Add(outString);
+                        if (_timeZone == _desc.PropDesc[i])
+                        {
+                            // Select item of combo box
+                            comboBox1.SelectedIndex = i;
+                            _timeZone = (uint)_desc.PropDesc[i];
+                            _timeZonePrev = _timeZone;
+                        }
                     }
                 }
+
+                // Daylight Saving Time
+                uint summerTimeSetting;
+                err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_SummerTimeSetting, 0, out summerTimeSetting);
+                if (summerTimeSetting == 0x01)
+                {
+                    this.checkBox1.Checked = true;
+                }
+                _summerTimeSetting = this.checkBox1.Checked;
+                _summerTimeSettingPrev = _summerTimeSetting;
+
+                // Time difference consideration
+                DateTime dateTime = EdsTime2DateTime(utcTime);
+                short timeDiff = (short)(_timeZone & 0x0000ffff);
+                TimeSpan timeSpan = new TimeSpan(0, Convert.ToInt32(this.checkBox1.Checked), timeDiff, 0);
+                dateTime = dateTime.Add(timeSpan);
+                utcTime = DateTime2EdsTime(dateTime);
+
+                _localTime = EdsTime2StrTime(utcTime);
+                _localTimePrev = _localTime;
+                this.textBox1.Text = _localTime;
             }
-
-            // Daylight Saving Time
-            uint summerTimeSetting;
-            err = EDSDKLib.EDSDK.EdsGetPropertyData(_camera, EDSDKLib.EDSDK.PropID_SummerTimeSetting, 0, out summerTimeSetting);
-            if (summerTimeSetting == 0x01)
-            {
-                this.checkBox1.Checked = true;
-            }
-            _summerTimeSetting = this.checkBox1.Checked;
-            _summerTimeSettingPrev = _summerTimeSetting;
-
-            // Time difference consideration
-            DateTime dateTime = EdsTime2DateTime(utcTime);
-            short timeDiff = (short)(_timeZone & 0x0000ffff);
-            TimeSpan timeSpan = new TimeSpan(0, Convert.ToInt32(this.checkBox1.Checked), timeDiff, 0);
-            dateTime = dateTime.Add(timeSpan);
-            utcTime = DateTime2EdsTime(dateTime);
-
-            _localTime = EdsTime2StrTime(utcTime);
-            _localTimePrev = _localTime;
-            this.textBox1.Text = _localTime;
         }
 
         private void button1_Click(object sender, EventArgs e)
         {
+            if (_camera == IntPtr.Zero)
+                return;
+
             // Zone Setting
             var selectedItem = comboBox1.SelectedIndex;
             uint timeZone = (uint)_desc.PropDesc[selectedItem];
